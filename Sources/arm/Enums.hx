@@ -1,6 +1,6 @@
 package arm;
 
-@:enum abstract PaintTool(Int) from Int to Int {
+@:enum abstract WorkspaceTool(Int) from Int to Int {
 	var ToolBrush = 0;
 	var ToolEraser = 1;
 	var ToolFill = 2;
@@ -12,19 +12,14 @@ package arm;
 	var ToolBake = 8;
 	var ToolColorId = 9;
 	var ToolPicker = 10;
-}
-
-@:enum abstract SceneTool(Int) from Int to Int {
-	var ToolGizmo = 0;
-}
-
-@:enum abstract RenderTool(Int) from Int to Int {
-	var ToolGizmo = 0;
+	var ToolGizmo = 11;
 }
 
 @:enum abstract SpaceType(Int) from Int to Int {
 	var SpacePaint = 0;
-	var SpaceScene = 1;
+	// var SpaceSculpt = 0;
+	var SpaceMaterial = 1;
+	// var SpaceBake = 0;
 	var SpaceRender = 2;
 }
 
@@ -40,9 +35,10 @@ package arm;
 	var BakeTexCoord = 7;
 	var BakeMaterialID = 8;
 	var BakeObjectID = 9;
-	var BakeLightmap = 10;
-	var BakeBentNormal = 11;
-	var BakeThickness = 12;
+	var BakeVertexColor = 10;
+	var BakeLightmap = 11;
+	var BakeBentNormal = 12;
+	var BakeThickness = 13;
 }
 
 @:enum abstract SplitType(Int) from Int to Int {
@@ -200,7 +196,8 @@ package arm;
 }
 
 @:enum abstract ProjectModel(Int) from Int to Int {
-	var ModelCube = 0;
+	var ModelRoundedCube = 0;
 	var ModelSphere = 1;
 	var ModelTessellatedPlane = 2;
+	var ModelCustom = 3;
 }

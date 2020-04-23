@@ -7,13 +7,14 @@ import iron.math.Vec4;
 import iron.RenderPath;
 import iron.Scene;
 #if arm_painter
-import arm.ui.UITrait;
+import arm.ui.UISidebar;
 import arm.util.UVUtil;
-import arm.Tool;
+import arm.Enums;
 #end
-using StringTools;
 
 class Uniforms {
+
+	static var vec = new Vec4();
 
 	public static function init() {
 		iron.object.Uniforms.externalFloatLinks = [linkFloat];
@@ -26,37 +27,45 @@ class Uniforms {
 	public static function linkFloat(object: Object, mat: MaterialData, link: String): Null<kha.FastFloat> {
 		#if arm_painter
 		if (link == "_brushRadius") {
-			var val = (UITrait.inst.brushRadius * UITrait.inst.brushNodesRadius) / 15.0;
+			var val = (Context.brushRadius * Context.brushNodesRadius) / 15.0;
 			var pen = Input.getPen();
-			if (UITrait.penPressureRadius && pen.down()) val *= pen.pressure;
+			if (Config.raw.pressure_radius && pen.down()) {
+				val *= pen.pressure * Config.raw.pressure_sensitivity;
+			}
 			var decal = Context.tool == ToolDecal || Context.tool == ToolText;
-			if (UITrait.inst.brush3d && !decal) {
-				val *= UITrait.inst.paint2d ? 0.6 : 2;
+			if (Config.raw.brush_3d && !decal) {
+				val *= Context.paint2d ? 0.6 : 2;
 			}
 			else val *= 900 / App.h(); // Projection ratio
 			return val;
 		}
 		if (link == "_brushScaleX") {
-			return 1 / UITrait.inst.brushScaleX;
+			return 1 / Context.brushScaleX;
 		}
 		if (link == "_brushOpacity") {
-			var val = UITrait.inst.brushOpacity * UITrait.inst.brushNodesOpacity;
+			var val = Context.brushOpacity * Context.brushNodesOpacity;
 			var pen = Input.getPen();
-			if (UITrait.penPressureOpacity && pen.down()) val *= pen.pressure;
+			if (Config.raw.pressure_opacity && pen.down()) {
+				val *= pen.pressure * Config.raw.pressure_sensitivity;
+			}
 			return val;
 		}
 		if (link == "_brushHardness") {
 			if (Context.tool != ToolBrush && Context.tool != ToolEraser) return 1.0;
-			var val = UITrait.inst.brushHardness * UITrait.inst.brushNodesHardness;
+			var val = Context.brushHardness * Context.brushNodesHardness;
 			var pen = Input.getPen();
-			if (UITrait.penPressureHardness && pen.down()) val *= pen.pressure;
-			if (UITrait.inst.brush3d && !UITrait.inst.paint2d) val *= val;
+			if (Config.raw.pressure_hardness && pen.down()) {
+				val *= pen.pressure * Config.raw.pressure_sensitivity;
+			}
+			if (Config.raw.brush_3d && !Context.paint2d) {
+				val *= val;
+			}
 			return val;
 		}
 		if (link == "_brushScale") {
-			var nodesScale = UITrait.inst.brushNodesScale;
+			var nodesScale = Context.brushNodesScale;
 			var fill = Context.layer.material_mask != null;
-			var val = (fill ? Context.layer.uvScale : UITrait.inst.brushScale) * nodesScale;
+			var val = (fill ? Context.layer.scale : Context.brushScale) * nodesScale;
 			return val;
 		}
 		if (link == "_texpaintSize") {
@@ -69,7 +78,7 @@ class Uniforms {
 		#if arm_world
 		if (link == "_voxelgiHalfExtentsUni") {
 			#if arm_painter
-			return UITrait.inst.vxaoExt;
+			return Context.vxaoExt;
 			#else
 			return 10.0;
 			#end
@@ -77,28 +86,28 @@ class Uniforms {
 		#end
 		if (link == "_vignetteStrength") {
 			#if arm_painter
-			return UITrait.inst.vignetteStrength;
+			return Config.raw.rp_vignette;
 			#else
 			return 0.4;
 			#end
 		}
 		if (link == "_coneOffset") {
 			#if arm_painter
-			return UITrait.inst.vxaoOffset;
+			return Context.vxaoOffset;
 			#else
 			return 1.5;
 			#end
 		}
 		if (link == "_coneAperture") {
 			#if arm_painter
-			return UITrait.inst.vxaoAperture;
+			return Context.vxaoAperture;
 			#else
 			return 1.2;
 			#end
 		}
 		if (link == "_dilateRadius") {
 			#if arm_painter
-			return UITrait.inst.dilateRadius;
+			return Context.dilateRadius;
 			#else
 			return 8.0;
 			#end
@@ -108,31 +117,35 @@ class Uniforms {
 
 	public static function linkVec2(object: Object, mat: MaterialData, link: String): iron.math.Vec4 {
 		#if arm_painter
-		var vec2 = UITrait.inst.vec2;
 		if (link == "_sub") {
-			UITrait.inst.sub = (UITrait.inst.sub + 1) % 4;
-			var eps = UITrait.inst.brushBias * 0.00022 * Config.getTextureResBias();
-			UITrait.inst.sub == 0 ? vec2.set(eps, eps, 0.0) :
-			UITrait.inst.sub == 1 ? vec2.set(eps, -eps, 0.0) :
-			UITrait.inst.sub == 2 ? vec2.set(-eps, -eps, 0.0) :
-									vec2.set(-eps, eps, 0.0);
-			return vec2;
-		}
-		if (link == "_texcoloridSize") {
-			if (Project.assets.length == 0) return vec2;
-			var img = UITrait.inst.getImage(Project.assets[UITrait.inst.colorIdHandle.position]);
-			vec2.set(img.width, img.height, 0);
-			return vec2;
+			Context.sub = (Context.sub + 1) % 4;
+			var eps = Context.brushBias * 0.00022 * Config.getTextureResBias();
+			Context.sub == 0 ? vec.set(eps, eps, 0.0) :
+			Context.sub == 1 ? vec.set(eps, -eps, 0.0) :
+			Context.sub == 2 ? vec.set(-eps, -eps, 0.0) :
+									  vec.set(-eps, eps, 0.0);
+			return vec;
 		}
 		if (link == "_gbufferSize") {
-			vec2.set(0, 0, 0);
+			vec.set(0, 0, 0);
 			var gbuffer2 = RenderPath.active.renderTargets.get("gbuffer2");
-			vec2.set(gbuffer2.image.width, gbuffer2.image.height, 0);
-			return vec2;
+			vec.set(gbuffer2.image.width, gbuffer2.image.height, 0);
+			return vec;
 		}
 		if (link == "_cloneDelta") {
-			vec2.set(UITrait.inst.cloneDeltaX, UITrait.inst.cloneDeltaY, 0);
-			return vec2;
+			vec.set(Context.cloneDeltaX, Context.cloneDeltaY, 0);
+			return vec;
+		}
+		if (link == "_brushAngle") {
+			var brushAngle = Context.brushAngle + Context.brushNodesAngle;
+			var angle = Context.layer.material_mask != null ? Context.layer.angle : brushAngle;
+			angle *= (Math.PI / 180);
+			var pen = Input.getPen();
+			if (Config.raw.pressure_angle && pen.down()) {
+				angle *= pen.pressure * Config.raw.pressure_sensitivity;
+			}
+			vec.set(Math.cos(angle), Math.sin(angle), 0);
+			return vec;
 		}
 		#end
 		return null;
@@ -262,24 +275,45 @@ class Uniforms {
 			return v;
 		}
 		#end
+		#if arm_painter
+		if (link == "_brushDirection") {
+			v = iron.object.Uniforms.helpVec;
+			if (Context.lastPaintVecX != Context.paintVec.x) Context.prevPaintVecX = Context.lastPaintVecX;
+			if (Context.lastPaintVecY != Context.paintVec.y) Context.prevPaintVecY = Context.lastPaintVecY;
+			var x = Context.paintVec.x;
+			var y = Context.paintVec.y;
+			var lastx = Context.prevPaintVecX;
+			var lasty = Context.prevPaintVecY;
+			if (Context.paint2d) { x -= 1.0; lastx -= 1.0; }
+			var angle = Math.atan2(-y + lasty, x - lastx) - Math.PI / 2;
+			// Discard first paint for directional brush
+			var allowPaint = (Context.prevPaintVecX > 0 && Context.prevPaintVecY > 0) ? 1 : 0;
+			v.set(Math.cos(angle), Math.sin(angle), allowPaint);
+			return v;
+		}
+		#end
 
 		return v;
 	}
 
 	public static function linkVec4(object: Object, mat: MaterialData, link: String): iron.math.Vec4 {
 		#if arm_painter
-		var vec2 = UITrait.inst.vec2;
 		if (link == "_inputBrush") {
 			var down = Input.getMouse().down() || Input.getPen().down();
-			vec2.set(UITrait.inst.paintVec.x, UITrait.inst.paintVec.y, down ? 1.0 : 0.0, 0.0);
-			if (UITrait.inst.paint2d) vec2.x -= 1.0;
-			return vec2;
+			vec.set(Context.paintVec.x, Context.paintVec.y, down ? 1.0 : 0.0, 0.0);
+			if (Context.paint2d) vec.x -= 1.0;
+			return vec;
 		}
 		if (link == "_inputBrushLast") {
 			var down = Input.getMouse().down() || Input.getPen().down();
-			vec2.set(UITrait.inst.lastPaintVecX, UITrait.inst.lastPaintVecY, down ? 1.0 : 0.0, 0.0);
-			if (UITrait.inst.paint2d) vec2.x -= 1.0;
-			return vec2;
+			vec.set(Context.lastPaintVecX, Context.lastPaintVecY, down ? 1.0 : 0.0, 0.0);
+			if (Context.paint2d) vec.x -= 1.0;
+			return vec;
+		}
+		if (link == "_stencilTransform") {
+			vec.set(Context.brushStencilX, Context.brushStencilY, Context.brushStencilScale, Context.brushStencilAngle);
+			if (Context.paint2d) vec.x -= 1.0;
+			return vec;
 		}
 		#end
 		return null;
@@ -289,7 +323,7 @@ class Uniforms {
 		#if arm_painter
 		if (link == "_texcolorid") {
 			if (Project.assets.length == 0) return RenderPath.active.renderTargets.get("empty_white").image;
-			else return UITrait.inst.getImage(Project.assets[UITrait.inst.colorIdHandle.position]);
+			else return UISidebar.inst.getImage(Project.assets[Context.colorIdHandle.position]);
 		}
 		if (link == "_texuvmap") {
 			UVUtil.cacheUVMap(); // TODO: Check overlapping g4 calls here
@@ -300,13 +334,13 @@ class Uniforms {
 			return UVUtil.trianglemap;
 		}
 		if (link == "_textexttool") { // Opacity map for text
-			return UITrait.inst.textToolImage;
-		}
-		if (link == "_texdecalmask") { // Opacity map for decal
-			return UITrait.inst.decalMaskImage;
+			return Context.textToolImage;
 		}
 		if (link == "_texbrushmask") {
-			return UITrait.inst.brushMaskImage;
+			return Context.brushMaskImage;
+		}
+		if (link == "_texbrushstencil") {
+			return Context.brushStencilImage;
 		}
 		if (link == "_texpaint_undo") {
 			var i = History.undoI - 1 < 0 ? Config.raw.undo_steps - 1 : History.undoI - 1;
@@ -323,6 +357,10 @@ class Uniforms {
 		if (link.startsWith("_texpaint_pack_vert")) {
 			var tid = link.substr(link.length - 1);
 			return RenderPath.active.renderTargets.get("texpaint_pack" + tid).image;
+		}
+		if (link.startsWith("_texpaint_mask_vert")) {
+			var tid = Std.parseInt(link.substr(link.length - 1));
+			return Project.layers[tid].texpaint_mask;
 		}
 
 		if (link == "_texpaint_mask") {

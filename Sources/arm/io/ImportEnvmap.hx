@@ -6,9 +6,8 @@ import kha.graphics4.TextureFormat;
 import kha.arrays.Float32Array;
 import iron.data.Data;
 import iron.Scene;
-import arm.ui.UITrait;
+import arm.ui.UISidebar;
 import arm.sys.Path;
-using StringTools;
 
 class ImportEnvmap {
 
@@ -83,8 +82,8 @@ class ImportEnvmap {
 		Scene.active.world.probe.raw.strength = 1.0;
 		Scene.active.world.envmap = image;
 		Scene.active.world.raw.envmap = path;
-		UITrait.inst.savedEnvmap = image;
-		UITrait.inst.showEnvmapHandle.selected = UITrait.inst.showEnvmap = true;
+		Context.savedEnvmap = image;
+		Context.showEnvmapHandle.selected = Context.showEnvmap = true;
 
 		// Load envmap clone and set mipmaps
 		Data.cachedImages.remove(path);
@@ -99,7 +98,9 @@ class ImportEnvmap {
 			var mw = Std.int(image.width / 2);
 			var mh = Std.int(image.width / 4);
 			for (i in 0...mipsCount) {
-				Data.getImage("tmp_rad_" + i + "_" + mw + "x" + mh + ".hdr", function(mip: Image) {
+				var radiance_file = "tmp_rad_" + i + "_" + mw + "x" + mh + ".hdr";
+				Data.cachedImages.remove(radiance_file);
+				Data.getImage(radiance_file, function(mip: Image) {
 					mips[i] = mip;
 					mipsLoaded++;
 					if (mipsLoaded == mipsCount) {
@@ -112,6 +113,9 @@ class ImportEnvmap {
 						image.setMipmaps(mips);
 						Scene.active.world.probe.radiance = image;
 						Scene.active.world.probe.radianceMipmaps = mips;
+						if (Context.showEnvmapBlur) {
+							Scene.active.world.envmap = Scene.active.world.probe.radianceMipmaps[0];
+						}
 						Context.ddirty = 2;
 					}
 				}, true); // Readable

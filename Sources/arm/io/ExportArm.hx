@@ -4,12 +4,11 @@ import haxe.Json;
 import zui.Nodes;
 import iron.data.SceneFormat;
 import iron.system.ArmPack;
-import arm.ui.UITrait;
+import arm.ui.UISidebar;
 import arm.format.Lz4;
 import arm.sys.Path;
-import arm.Project;
-import arm.Tool;
-using StringTools;
+import arm.ProjectFormat;
+import arm.Enums;
 
 class ExportArm {
 
@@ -53,19 +52,29 @@ class ExportArm {
 				texpaint_nor: l.texpaint_nor != null ? Lz4.encode(l.texpaint_nor.getPixels()) : null,
 				texpaint_pack: l.texpaint_pack != null ? Lz4.encode(l.texpaint_pack.getPixels()) : null,
 				texpaint_mask: l.texpaint_mask != null ? Lz4.encode(l.texpaint_mask.getPixels()) : null,
-				uv_scale: l.uvScale,
-				uv_rot: l.uvRot,
+				uv_scale: l.scale,
+				uv_rot: l.angle,
 				uv_type: l.uvType,
 				opacity_mask: l.maskOpacity,
 				material_mask: l.material_mask != null ? Project.materials.indexOf(l.material_mask) : -1,
 				object_mask: l.objectMask,
 				blending: l.blending,
-				parent: l.parent != null ? Project.layers.indexOf(l.parent) : -1
+				parent: l.parent != null ? Project.layers.indexOf(l.parent) : -1,
+				visible: l.visible,
+				paint_base: l.paintBase,
+				paint_opac: l.paintOpac,
+				paint_occ: l.paintOcc,
+				paint_rough: l.paintRough,
+				paint_met: l.paintMet,
+				paint_nor: l.paintNor,
+				paint_height: l.paintHeight,
+				paint_emis: l.paintEmis,
+				paint_subs: l.paintSubs
 			});
 		}
 
 		Project.raw = {
-			version: App.version,
+			version: Main.version,
 			material_nodes: mnodes,
 			brush_nodes: bnodes,
 			mesh_datas: md,
@@ -101,9 +110,41 @@ class ExportArm {
 		var texture_files = assetsToFiles(assets);
 
 		var raw = {
-			version: App.version,
+			version: Main.version,
 			material_nodes: mnodes,
 			material_icons: [Lz4.encode(m.image.getPixels())],
+			assets: texture_files
+		};
+
+		var bytes = ArmPack.encode(raw);
+		if (!path.endsWith(".arm")) path += ".arm";
+		Krom.fileSaveBytes(path, bytes.getData());
+	}
+
+	public static function runBrush(path: String) {
+		var bnodes: Array<TNodeCanvas> = [];
+		var b = Context.brush;
+		var c: TNodeCanvas = Json.parse(Json.stringify(b.canvas));
+		var assets: Array<TAsset> = [];
+		for (n in c.nodes) {
+			if (n.type == "TEX_IMAGE") {
+				var index = n.buttons[0].default_value;
+				n.buttons[0].data = App.enumTexts(n.type)[index];
+
+				var asset = Project.assets[index];
+				if (assets.indexOf(asset) == -1) {
+					assets.push(asset);
+				}
+			}
+		}
+		bnodes.push(c);
+
+		var texture_files = assetsToFiles(assets);
+
+		var raw = {
+			version: Main.version,
+			brush_nodes: bnodes,
+			brush_icons: [Lz4.encode(b.image.getPixels())],
 			assets: texture_files
 		};
 

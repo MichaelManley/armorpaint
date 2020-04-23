@@ -11,7 +11,8 @@ import zui.Zui;
 import zui.Id;
 import iron.system.Input;
 import arm.util.UVUtil;
-import arm.Tool;
+import arm.render.RenderPathPaint;
+import arm.Enums;
 
 @:access(zui.Zui)
 class UIView2D {
@@ -51,7 +52,7 @@ class UIView2D {
 		channelLocation = pipe.getConstantLocation("channel");
 
 		var scale = Config.raw.window_scale;
-		ui = new Zui({font: App.font, theme: App.theme, color_wheel: App.color_wheel, scaleFactor: scale});
+		ui = new Zui({font: App.font, theme: App.theme, color_wheel: App.colorWheel, scaleFactor: scale});
 		ui.scrollEnabled = false;
 
 		iron.App.notifyOnRender2D(render);
@@ -62,8 +63,8 @@ class UIView2D {
 		if (UINodes.inst.defaultWindowW == 0) UINodes.inst.defaultWindowW = Std.int(iron.App.w() / 2);
 		if (UINodes.inst.defaultWindowH == 0) UINodes.inst.defaultWindowH = Std.int(iron.App.h() / 2);
 		ww = UINodes.inst.defaultWindowW;
-		wx = Std.int(iron.App.w()) + UITrait.inst.toolbarw;
-		wy = UITrait.inst.headerh * 2;
+		wx = Std.int(iron.App.w()) + UIToolbar.inst.toolbarw;
+		wy = UIHeader.inst.headerh * 2;
 
 		if (!show) return;
 		if (System.windowWidth() == 0 || System.windowHeight() == 0) return;
@@ -94,13 +95,15 @@ class UIView2D {
 			ui.g.drawImage(UINodes.inst.grid, (panX * panScale) % 40 - 40, (panY * panScale) % 40 - 40);
 
 			// Texture
-			ui.g.pipeline = pipe;
 			var l = Context.layer;
 			var tex: Image = null;
 			var channel = 0;
 
 			if (type == View2DLayer) {
 				var layer = l.getChildren() == null ? l : l.getChildren()[0];
+				if (Config.raw.brush_live && RenderPathPaint.liveLayerDrawn > 0) {
+					layer = RenderPathPaint.liveLayer;
+				}
 				tex =
 					Context.layerIsMask   ? layer.texpaint_mask :
 					texType == TexBase    ? layer.texpaint :
@@ -109,23 +112,30 @@ class UIView2D {
 										    layer.texpaint_pack;
 
 				channel =
-					Context.layerIsMask ? 1 :
+					Context.layerIsMask     ? 1 :
 					texType == TexOcclusion ? 1 :
 					texType == TexRoughness ? 2 :
 					texType == TexMetallic  ? 3 :
 					texType == TexOpacity   ? 4 :
+					texType == TexNormal    ? 5 :
 											  0;
 			}
 			else { // View2DAsset
-				tex = UITrait.inst.getImage(Context.texture);
+				tex = UISidebar.inst.getImage(Context.texture);
 			}
 
 			var th = tw;
 			if (tex != null) {
 				th = tw * (tex.height / tex.width);
-				drawLayer(tex, tx, ty, tw, th, channel);
+				if (type == View2DLayer) {
+					ui.g.pipeline = pipe;
+					drawLayer(tex, tx, ty, tw, th, channel);
+					ui.g.pipeline = null;
+				}
+				else {
+					ui.g.drawScaledImage(tex, tx, ty, tw, th);
+				}
 			}
-			ui.g.pipeline = null;
 
 			// UV map
 			if (type == View2DLayer && uvmapShow) {
@@ -161,7 +171,7 @@ class UIView2D {
 				}
 			}
 
-			if (h.changed) UITrait.inst.hwnd.redraws = 2;
+			if (h.changed) UISidebar.inst.hwnd.redraws = 2;
 			ui.t.ACCENT_COL = ACCENT_COL;
 			ui.t.BUTTON_H = BUTTON_H;
 			ui.t.ELEMENT_H = ELEMENT_H;
@@ -178,19 +188,26 @@ class UIView2D {
 				ui._w = ew;
 
 				if (!Context.layerIsMask) {
-					texType = ui.combo(Id.handle({position: texType}), ["Base Color", "Normal Map", "Occlusion", "Roughness", "Metallic", "Opacity"], "Texture");
+					texType = ui.combo(Id.handle({position: texType}), [
+						tr("Base Color"),
+						tr("Normal Map"),
+						tr("Occlusion"),
+						tr("Roughness"),
+						tr("Metallic"),
+						tr("Opacity"),
+					], tr("Texture"));
 					ui._x += ew + 3;
 					ui._y = 2;
 				}
 
-				uvmapShow = ui.check(Id.handle({selected: uvmapShow}), "UV Map");
+				uvmapShow = ui.check(Id.handle({selected: uvmapShow}), tr("UV Map"));
 				ui._x += ew + 3;
 				ui._y = 2;
 			}
 
 			if (Context.tool == ToolPicker) {
 				var cursorImg = Res.get("cursor.k");
-				ui.g.drawScaledImage(cursorImg, tx + tw * UITrait.inst.uvxPicked - 16, ty + th * UITrait.inst.uvyPicked - 16, 32, 32);
+				ui.g.drawScaledImage(cursorImg, tx + tw * Context.uvxPicked - 16, ty + th * Context.uvyPicked - 16, 32, 32);
 			}
 		}
 		ui.end();
@@ -198,7 +215,7 @@ class UIView2D {
 	}
 
 	function drawLayer(tex: kha.Image, tx: Float, ty: Float, tw: Float, th: Float, channel: Int) {
-		if (!UITrait.inst.textureFilter) {
+		if (!Context.textureFilter) {
 			ui.g.imageScaleQuality = kha.graphics2.ImageScaleQuality.Low;
 		}
 
@@ -209,7 +226,7 @@ class UIView2D {
 
 		ui.g.drawScaledImage(tex, tx, ty, tw, th);
 
-		if (!UITrait.inst.textureFilter) {
+		if (!Context.textureFilter) {
 			ui.g.imageScaleQuality = kha.graphics2.ImageScaleQuality.High;
 		}
 	}
@@ -219,9 +236,9 @@ class UIView2D {
 		var kb = Input.getKeyboard();
 
 		var headerh = ui.ELEMENT_H() * 1.4;
-		UITrait.inst.paint2d = false;
+		Context.paint2d = false;
 
-		if (!App.uienabled ||
+		if (!App.uiEnabled ||
 			!show ||
 			mouse.x < wx ||
 			mouse.x > wx + ww ||
@@ -245,8 +262,9 @@ class UIView2D {
 		if (type == View2DLayer &&
 			(Operator.shortcut(Config.keymap.action_paint) ||
 			 Operator.shortcut(Config.keymap.brush_ruler + "+" + Config.keymap.action_paint) ||
-			 setCloneSource)) {
-			UITrait.inst.paint2d = true;
+			 setCloneSource ||
+			 Config.raw.brush_live)) {
+			Context.paint2d = true;
 		}
 
 		if (ui.isTyping) return;

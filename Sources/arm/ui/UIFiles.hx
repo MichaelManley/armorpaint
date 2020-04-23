@@ -9,11 +9,10 @@ import iron.system.ArmPack;
 import arm.format.Lz4;
 import arm.sys.Path;
 import arm.sys.File;
-using StringTools;
 
 class UIFiles {
 
-	public static var filename = "untitled";
+	public static var filename: String;
 	public static var path = defaultPath;
 	static var lastPath = "";
 	static var files: Array<String> = null;
@@ -22,7 +21,7 @@ class UIFiles {
 	static var showExtensions = true;
 
 	public static function show(filters: String, isSave: Bool, filesDone: String->Void) {
-		if (!UITrait.inst.nativeBrowser) {
+		if (!Context.nativeBrowser) {
 			if (path == null) path = defaultPath;
 			showCustom(filters, isSave, filesDone);
 			return;
@@ -43,13 +42,13 @@ class UIFiles {
 	static function showCustom(filters: String, isSave: Bool, filesDone: String->Void) {
 		var known = false;
 		UIBox.showCustom(function(ui: Zui) {
-			if (ui.tab(Id.handle(), "File Browser")) {
+			if (ui.tab(Id.handle(), tr("File Browser"))) {
 				var pathHandle = Id.handle();
 				var fileHandle = Id.handle();
 				ui.row([6 / 10, 2 / 10, 2 / 10]);
-				filename = ui.textInput(fileHandle, "File");
+				filename = ui.textInput(fileHandle, tr("File"));
 				ui.text("*." + filters, Center);
-				if (ui.button(isSave ? "Save" : "Open") || known || ui.isReturnDown) {
+				if (ui.button(isSave ? tr("Save") : tr("Open")) || known || ui.isReturnDown) {
 					UIBox.show = false;
 					filesDone((known || isSave) ? path : path + Path.sep + filename);
 					if (known) pathHandle.text = pathHandle.text.substr(0, pathHandle.text.lastIndexOf(Path.sep));
@@ -139,13 +138,13 @@ class UIFiles {
 						}
 					}
 					if (icon != null) {
-						state = ui.image(icon, 0xffffffff, rect.h);
+						state = ui.image(icon, 0xffffffff, 50 * ui.SCALE());
 						generic = false;
 					}
 				}
 
 				if (generic) {
-					state = ui.image(icons, col, rect.h, rect.x, rect.y, rect.w, rect.h);
+					state = ui.image(icons, col, 50 * ui.SCALE(), rect.x, rect.y, rect.w, rect.h);
 				}
 
 				if (state == Started) {
@@ -162,7 +161,7 @@ class UIFiles {
 					}
 
 					selected = i;
-					if (Time.time() - UITrait.inst.selectTime < 0.25) {
+					if (Time.time() - Context.selectTime < 0.25) {
 						App.dragFile = null;
 						App.isDragging = false;
 						handle.changed = ui.changed = true;
@@ -179,7 +178,7 @@ class UIFiles {
 						}
 						selected = -1;
 					}
-					UITrait.inst.selectTime = Time.time();
+					Context.selectTime = Time.time();
 				}
 
 				ui._x = _x;
@@ -200,7 +199,7 @@ class UIFiles {
 		#elseif krom_android
 		"/sdcard"
 		#elseif krom_darwin
-		"/Users";
+		"/Users"
 		#else
 		"/"
 		#end

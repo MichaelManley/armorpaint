@@ -3,12 +3,12 @@ package arm.ui;
 class TabPlugins {
 
 	public static function draw() {
-		var ui = UITrait.inst.ui;
-		if (ui.tab(UITrait.inst.htab, "Plugins")) {
+		var ui = UISidebar.inst.ui;
+		if (ui.tab(UISidebar.inst.htab, tr("Plugins"))) {
 
 			ui.row([1 / 4]);
-			if (ui.button("Manager")) {
-				BoxPreferences.htab.position = 5; // Plugins
+			if (ui.button(tr("Manager"))) {
+				BoxPreferences.htab.position = 6; // Plugins
 				BoxPreferences.show();
 			}
 

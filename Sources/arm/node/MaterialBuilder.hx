@@ -1,9 +1,9 @@
 package arm.node;
 
 import iron.data.SceneFormat;
-import arm.ui.UITrait;
+import arm.ui.UISidebar;
 import arm.node.MaterialShader;
-import arm.Tool;
+import arm.Enums;
 
 class MaterialBuilder {
 
@@ -100,11 +100,11 @@ class MaterialBuilder {
 
 	public static inline function getDisplaceStrength():Float {
 		var sc = Context.mainObject().transform.scale.x;
-		return UITrait.inst.displaceStrength * 0.02 * sc;
+		return Context.displaceStrength * 0.02 * sc;
 	}
 
 	public static inline function voxelgiHalfExtents():String {
-		var ext = UITrait.inst.vxaoExt;
+		var ext = Context.vxaoExt;
 		return 'const vec3 voxelgiHalfExtents = vec3($ext, $ext, $ext);';
 	}
 }

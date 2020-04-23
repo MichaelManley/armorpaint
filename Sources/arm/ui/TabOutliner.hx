@@ -10,10 +10,10 @@ class TabOutliner {
 
 	@:access(zui.Zui)
 	public static function draw() {
-		var ui = UITrait.inst.ui;
-		if (ui.tab(UITrait.inst.htab, "Outliner")) {
+		var ui = UISidebar.inst.ui;
+		if (ui.tab(UISidebar.inst.htab, tr("Outliner"))) {
 			ui.row([1 / 4]);
-			if (ui.button("Import")) Project.importMesh();
+			if (ui.button(tr("Import"))) Project.importMesh();
 
 			var i = 0;
 			function drawList(h: Handle, o: Object) {
@@ -43,7 +43,7 @@ class TabOutliner {
 				if (ui.isReleased) {
 					Context.selectObject(o);
 					Context.ddirty = 2;
-					UITrait.inst.hwnd1.redraws = 2;
+					UISidebar.inst.hwnd1.redraws = 2;
 				}
 				i++;
 				if (b) {

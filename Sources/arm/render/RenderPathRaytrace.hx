@@ -2,8 +2,10 @@ package arm.render;
 
 import iron.RenderPath;
 import iron.Scene;
-import arm.ui.UITrait;
+import arm.ui.UISidebar;
+import arm.ui.UIHeader;
 import arm.node.MaterialParser;
+import arm.Enums;
 
 #if kha_direct3d12
 
@@ -41,8 +43,10 @@ class RenderPathRaytrace {
 		}
 
 		var probe = Scene.active.world.probe;
-		var savedEnvmap = UITrait.inst.showEnvmapBlur ? probe.radianceMipmaps[0] : probe.radiance;
-		var layer = Context.layer;
+		var savedEnvmap = Context.showEnvmapBlur ? probe.radianceMipmaps[0] : probe.radiance;
+		var isLive = Config.raw.brush_live && RenderPathPaint.liveLayerDrawn > 0;
+		var materialSpace = UIHeader.inst.worktab.position == SpaceMaterial;
+		var layer = (isLive || materialSpace) ? RenderPathPaint.liveLayer : Context.layer;
 		if (lastEnvmap != savedEnvmap || lastLayer != layer.texpaint) {
 			lastEnvmap = savedEnvmap;
 			lastLayer = layer.texpaint;
@@ -80,7 +84,12 @@ class RenderPathRaytrace {
 		f32[18] = helpMat._32;
 		f32[19] = helpMat._33;
 		f32[20] = Scene.active.world.probe.raw.strength;
-		f32[21] = UITrait.inst.showEnvmap ? 1.0 : 0.0;
+		if (!Context.showEnvmap) f32[20] = -f32[20];
+		// f32[21] = Context.showEnvmap ? 1.0 : 0.0;
+		// var right = cam.rightWorld().normalize();
+		// f32[21] = right.x;
+		// f32[22] = right.y;
+		// f32[23] = right.z;
 
 		var framebuffer = path.renderTargets.get("buf").image;
 		Krom.raytraceDispatchRays(framebuffer.renderTarget_, f32.buffer);
@@ -94,9 +103,9 @@ class RenderPathRaytrace {
 	}
 
 	public static function commandsBake() {
-		if (!ready || !isBake || lastBake != UITrait.inst.bakeType) {
-			var rebuild = !(ready && isBake && lastBake != UITrait.inst.bakeType);
-			lastBake = UITrait.inst.bakeType;
+		if (!ready || !isBake || lastBake != Context.bakeType) {
+			var rebuild = !(ready && isBake && lastBake != Context.bakeType);
+			lastBake = Context.bakeType;
 			ready = true;
 			isBake = true;
 			lastEnvmap = null;
@@ -133,8 +142,8 @@ class RenderPathRaytrace {
 				path.createRenderTarget(t);
 			}
 
-			var _bakeType = UITrait.inst.bakeType;
-			UITrait.inst.bakeType = BakeInit;
+			var _bakeType = Context.bakeType;
+			Context.bakeType = BakeInit;
 			MaterialParser.parsePaintMaterial();
 			path.setTarget("baketex0");
 			path.clearTarget(0x00000000); // Pixels with alpha of 0.0 are skipped during raytracing
@@ -142,7 +151,7 @@ class RenderPathRaytrace {
 				path.setTarget("baketex0", ["baketex1"]);
 				path.drawMeshes("paint");
 			}
-			UITrait.inst.bakeType = _bakeType;
+			Context.bakeType = _bakeType;
 			function _render(_) {
 				MaterialParser.parsePaintMaterial();
 				iron.App.removeRender(_render);
@@ -155,7 +164,7 @@ class RenderPathRaytrace {
 		}
 
 		var probe = Scene.active.world.probe;
-		var savedEnvmap = UITrait.inst.showEnvmapBlur ? probe.radianceMipmaps[0] : probe.radiance;
+		var savedEnvmap = Context.showEnvmapBlur ? probe.radianceMipmaps[0] : probe.radiance;
 		if (lastEnvmap != savedEnvmap || lastLayer != Context.layer.texpaint) {
 			lastEnvmap = savedEnvmap;
 			lastLayer = Context.layer.texpaint;
@@ -169,18 +178,18 @@ class RenderPathRaytrace {
 			Krom.raytraceSetTextures(baketex0.renderTarget_, baketex1.renderTarget_, texpaint_undo.renderTarget_, savedEnvmap.texture_, bnoise_sobol.texture_, bnoise_scramble.texture_, bnoise_rank.texture_);
 		}
 
-		if (UITrait.inst.brushTime > 0) {
+		if (Context.brushTime > 0) {
 			Context.pdirty = 2;
 			Context.rdirty = 2;
 		}
 
 		if (Context.pdirty > 0) {
 			f32[0] = frame++;
-			f32[1] = UITrait.inst.bakeAoStrength;
-			f32[2] = UITrait.inst.bakeAoRadius;
-			f32[3] = UITrait.inst.bakeAoOffset;
+			f32[1] = Context.bakeAoStrength;
+			f32[2] = Context.bakeAoRadius;
+			f32[3] = Context.bakeAoOffset;
 			f32[4] = Scene.active.world.probe.raw.strength;
-			f32[5] = UITrait.inst.bakeUpAxis;
+			f32[5] = Context.bakeUpAxis;
 
 			var framebuffer = path.renderTargets.get("baketex2").image;
 			Krom.raytraceDispatchRays(framebuffer.renderTarget_, f32.buffer);
@@ -197,7 +206,7 @@ class RenderPathRaytrace {
 				raysTimer = 0;
 				raysCounter = 0;
 			}
-			UITrait.inst.headerHandle.redraws = 2;
+			UIHeader.inst.headerHandle.redraws = 2;
 		}
 		else {
 			frame = 0;
@@ -235,15 +244,16 @@ class RenderPathRaytrace {
 
 	static function getBakeShaderName(): String {
 		return
-			UITrait.inst.bakeType == BakeAO  		? "raytrace_bake_ao.cso" :
-			UITrait.inst.bakeType == BakeLightmap 	? "raytrace_bake_light.cso" :
-			UITrait.inst.bakeType == BakeBentNormal ? "raytrace_bake_bent.cso" :
+			Context.bakeType == BakeAO  		? "raytrace_bake_ao.cso" :
+			Context.bakeType == BakeLightmap 	? "raytrace_bake_light.cso" :
+			Context.bakeType == BakeBentNormal ? "raytrace_bake_bent.cso" :
 													  "raytrace_bake_thick.cso";
 	}
 
 	public static function draw() {
 		#if arm_painter
-		if (Context.ddirty > 1) frame = 0;
+		var isLive = Config.raw.brush_live && RenderPathPaint.liveLayerDrawn > 0;
+		if (Context.ddirty > 1 || Context.pdirty > 0 || isLive) frame = 0;
 		#else
 		frame = 0;
 		#end
@@ -259,7 +269,7 @@ class RenderPathRaytrace {
 		path.bindTarget("taa", "tex");
 		path.drawShader("shader_datas/copy_pass/copy_pass");
 		#if arm_painter
-		if (UITrait.inst.brush3d) {
+		if (Config.raw.brush_3d) {
 			RenderPathPaint.commandsCursor();
 		}
 		#end

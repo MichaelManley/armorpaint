@@ -19,7 +19,6 @@ package arm.node;
 import zui.Nodes;
 import iron.data.SceneFormat;
 import arm.node.MaterialShader;
-using StringTools;
 
 class Material {
 
@@ -211,6 +210,10 @@ class Material {
 			vert.add_out("vec4 wvpposition");
 			vert.write_end('wvpposition = gl_Position;');
 		}
+		if (con.is_elem('col')) {
+			vert.add_out('vec3 vcolor');
+			vert.write_attrib('vcolor = col.rgb;');
+		}
 	}
 
 	static function parse_output(node: TNode): TShaderOut {
@@ -378,9 +381,13 @@ class Material {
 
 		if (node.type == "ATTRIBUTE") {
 			if (socket == node.outputs[0]) { // Color
-				curshader.context.add_elem("col", "short4norm"); // Vcols only for now
-				// return "vcolor";
-				return "vec3(0.0, 0.0, 0.0)";
+				if (curshader.context.allow_vcols) {
+					curshader.context.add_elem("col", "short4norm"); // Vcols only for now
+				}
+				else {
+					curshader.write_attrib("vec3 vcolor = vec3(1.0, 1.0, 1.0);");
+				}
+				return "vcolor";
 			}
 			else { // Vector
 				curshader.context.add_elem("tex", "short2norm"); // UVMaps only for now
@@ -535,7 +542,7 @@ class Material {
 			var val = parse_value_input(node.inputs[2]);
 			var fac = parse_value_input(node.inputs[3]);
 			var col = parse_vector_input(node.inputs[4]);
-			return "hue_sat($col, vec4($hue-0.5, $sat, $val, 1.0-$fac))";
+			return 'hue_sat($col, vec4($hue-0.5, $sat, $val, 1.0-$fac))';
 		}
 		else if (node.type == "INVERT") {
 			var fac = parse_value_input(node.inputs[0]);
@@ -839,7 +846,7 @@ class Material {
 			}
 			if (node_rotation[2] != 0.0) {
 				// ZYX rotation, Z axis for now..
-				var a = node_rotation[2];
+				var a = node_rotation[2] * (Math.PI / 180);
 				// x * cos(theta) - y * sin(theta)
 				// x * sin(theta) + y * cos(theta)
 				out = 'vec3(${out}.x * ${Math.cos(a)} - (${out}.y) * ${Math.sin(a)}, ${out}.x * ${Math.sin(a)} + (${out}.y) * ${Math.cos(a)}, 0.0)';
@@ -1518,10 +1525,11 @@ class Material {
 			file: filepath
 		};
 
-		if (arm.ui.UITrait.inst.textureFilter) {
+		if (Context.textureFilter) {
 			tex.min_filter = "anisotropic";
 			tex.mag_filter = "linear";
 			tex.mipmap_filter = "linear";
+			tex.generate_mipmaps = true;
 		}
 		else {
 			tex.min_filter = "point";
@@ -1529,7 +1537,6 @@ class Material {
 			tex.mipmap_filter = "no";
 		}
 
-		tex.generate_mipmaps = true;
 		tex.u_addressing = "repeat";
 		tex.v_addressing = "repeat";
 		return tex;

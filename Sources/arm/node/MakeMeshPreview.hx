@@ -2,10 +2,10 @@ package arm.node;
 
 import iron.object.MeshObject;
 import iron.data.SceneFormat;
-import arm.ui.UITrait;
+import arm.ui.UIHeader;
 import arm.ui.UINodes;
 import arm.node.MaterialShader;
-import arm.Tool;
+import arm.Enums;
 
 class MakeMeshPreview {
 
@@ -13,13 +13,13 @@ class MakeMeshPreview {
 	public static var opacityDiscardScene = 0.5;
 
 	public static function run(data: MaterialShaderData, matcon: TMaterialContext): MaterialShaderContext {
-		var isScene = UITrait.inst.worktab.position == SpaceScene;
+		var isScene = UIHeader.inst.worktab.position == SpaceRender;
 		var context_id = "mesh";
 		var con_mesh: MaterialShaderContext = data.add_context({
 			name: context_id,
 			depth_write: true,
 			compare_mode: "less",
-			cull_mode: (UITrait.inst.cullBackfaces || !isScene) ? "clockwise" : "none",
+			cull_mode: (Context.cullBackfaces || !isScene) ? "clockwise" : "none",
 			vertex_elements: [{name: "pos", data: "short4norm"}, {name: "nor", data: "short2norm"}, {name: "tex", data: "short2norm"}] });
 
 		var vert = con_mesh.make_vert();
@@ -29,7 +29,7 @@ class MakeMeshPreview {
 
 		#if arm_skin
 		var isMesh = Std.is(Context.object, MeshObject);
-		var skin = isMesh && cast(Context.object, MeshObject).data.geom.bones != null;
+		var skin = isMesh && cast(Context.object, MeshObject).data.geom.getVArray("bone") != null;
 		if (skin) {
 			pos = "spos";
 			con_mesh.add_elem("bone", 'short4norm');
@@ -74,13 +74,9 @@ class MakeMeshPreview {
 		frag.write('float opacity = $opac;');
 		frag.write('vec3 nortan = $nortan;');
 
-		var decal = UITrait.inst.decalPreview;
+		var decal = Context.decalPreview;
 		if (decal) {
-			if (Context.tool == ToolDecal) {
-				frag.add_uniform('sampler2D texdecalmask', '_texdecalmask');
-				frag.write('opacity *= textureLod(texdecalmask, texCoord, 0.0).r;');
-			}
-			else if (Context.tool == ToolText) {
+			if (Context.tool == ToolText) {
 				frag.add_uniform('sampler2D textexttool', '_textexttool');
 				frag.write('opacity *= textureLod(textexttool, texCoord, 0.0).r;');
 			}

@@ -4,7 +4,7 @@ import iron.system.Input;
 import iron.system.Time;
 import iron.math.Vec4;
 import iron.math.Mat4;
-import arm.ui.UITrait;
+import arm.ui.UISidebar;
 import arm.util.ViewportUtil;
 
 class Camera {
@@ -27,9 +27,9 @@ class Camera {
 
 		iron.App.notifyOnUpdate(function() {
 			if (Input.occupied ||
-				!App.uienabled ||
+				!App.uiEnabled ||
 				App.isDragging  ||
-				UITrait.inst.isScrolling ||
+				UISidebar.inst.isScrolling ||
 				mouse.viewX < 0 ||
 				mouse.viewX > iron.App.w() ||
 				mouse.viewY < 0 ||
@@ -45,7 +45,7 @@ class Camera {
 			}
 
 			var modif = kb.down("alt") || kb.down("shift") || kb.down("control") || Config.keymap.action_rotate == "middle";
-			var controls = UITrait.inst.cameraControls;
+			var controls = Context.cameraControls;
 			if (controls == ControlsOrbit) {
 				if (Operator.shortcut(Config.keymap.action_rotate) || (mouse.down("right") && !modif)) {
 					redraws = 2;
@@ -67,14 +67,14 @@ class Camera {
 					dist -= f;
 				}
 
-				if (mouse.wheelDelta != 0) {
+				if (mouse.wheelDelta != 0 && !modif) {
 					redraws = 2;
 					var f = mouse.wheelDelta * (-0.1);
 					camera.transform.move(camera.look(), f);
 					dist -= f;
 				}
 
-				if (Operator.shortcut(Config.keymap.action_rotate_light)) {
+				if (Operator.shortcut(Config.keymap.rotate_light)) {
 					redraws = 2;
 					var light = iron.Scene.active.lights[0];
 					var m = iron.math.Mat4.identity();
@@ -140,8 +140,8 @@ class Camera {
 				var d = Time.delta * speed * fast * ease;
 				if (d > 0.0) {
 					camera.transform.move(dir, d);
-					if (UITrait.inst.cameraType == CameraOrthographic) {
-						ViewportUtil.updateCameraType(UITrait.inst.cameraType);
+					if (Context.cameraType == CameraOrthographic) {
+						ViewportUtil.updateCameraType(Context.cameraType);
 					}
 				}
 
@@ -154,8 +154,8 @@ class Camera {
 				redraws--;
 				Context.ddirty = 2;
 
-				if (UITrait.inst.cameraType == CameraOrthographic) {
-					ViewportUtil.updateCameraType(UITrait.inst.cameraType);
+				if (Context.cameraType == CameraOrthographic) {
+					ViewportUtil.updateCameraType(Context.cameraType);
 				}
 			}
 		});

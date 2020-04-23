@@ -8,6 +8,7 @@ class FbxBinaryParser {
 	var blob: kha.Blob;
 
 	var version: Int;
+	var is64: Bool;
 	var root: FbxNode;
 
 	function new(blob: kha.Blob) {
@@ -17,6 +18,7 @@ class FbxBinaryParser {
 		var valid = readChars(magic.length) == magic;
 		if (!valid) return;
 		var version = read32();
+		is64 = version >= 7500;
 		root = {
 			name : "Root",
 			props : [PInt(0), PString("Root"), PString("Root")],
@@ -97,9 +99,21 @@ class FbxBinaryParser {
 	}
 
 	function parseNode(): FbxNode {
-		var endPos = read32();
-		var numProps = read32();
-		var propListLen = read32();
+		var endPos = 0;
+		var numProps = 0;
+		var propListLen = 0;
+
+		if (is64) {
+			endPos = read64();
+			numProps = read64();
+			propListLen = read64();
+		}
+		else {
+			endPos = read32();
+			numProps = read32();
+			propListLen = read32();
+		}
+
 		var nameLen = read8();
 		var name = nameLen == 0 ? "" : readChars(nameLen);
 		if (endPos == 0) return null; // Null node
